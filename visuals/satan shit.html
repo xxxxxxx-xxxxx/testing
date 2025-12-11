@@ -1,44 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>ORG3403 Full Concept Network</title>
+  <meta charset="UTF-8">
+  <title>ORG3403 – Concept Network</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
     body {
       margin: 0;
-      background: #111;
-      font-family: Arial, sans-serif;
+      padding: 0;
+      background: #e5e7eb;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       overflow: hidden;
+      color: #111827;
     }
+
     #network {
       width: 100vw;
       height: 100vh;
     }
-    .link {
-      stroke-opacity: 0.35;
+
+    svg {
+      background: radial-gradient(circle at top, #ffffff 0%, #e5e7eb 55%, #d1d5db 100%);
     }
+
+    .link {
+      stroke: #9ca3af;
+      stroke-opacity: 0.5;
+    }
+
     .node circle {
-      stroke: #fff;
-      stroke-width: 1px;
+      stroke: #0f172a;
+      stroke-width: 1.2px;
       cursor: pointer;
     }
+
     .node text {
-      font-size: 9px;
-      fill: #fff;
+      font-size: 10px;
+      fill: #111827;
       pointer-events: none;
+      text-shadow: 0 0 2px #f9fafb;
     }
+
     .tooltip {
       position: absolute;
-      padding: 6px 8px;
-      background: rgba(0, 0, 0, 0.9);
-      color: #fff;
+      padding: 6px 10px;
+      background: #ffffff;
+      border-radius: 6px;
+      border: 1px solid #0ea5e9;
       font-size: 11px;
-      border-radius: 4px;
+      color: #111827;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.15s;
-      white-space: nowrap;
+      transform: translate(12px, 12px);
+      max-width: 260px;
+      line-height: 1.35;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
+      z-index: 10;
+    }
+
+    .tooltip strong {
+      color: #0f172a;
+    }
+
+    .legend {
+      font-size: 11px;
+    }
+
+    .legend rect {
+      rx: 4;
+      ry: 4;
+    }
+
+    .legend text {
+      fill: #111827;
     }
   </style>
 </head>
@@ -47,9 +81,9 @@
   <div class="tooltip" id="tooltip"></div>
 
   <script>
-    // ---------------------------------------------------
-    // 1) BIG MERMAID GRAPH (ALL CONCEPTS)
-    // ---------------------------------------------------
+    // =======================================================
+    // 1. MERMAID-LIKE SOURCE: ALL ORG3403 CONCEPTS & LINKS
+    // =======================================================
     const mermaidSource = `
 graph LR
     %% Individual Psychology Cluster
@@ -500,28 +534,26 @@ graph LR
     ABSENT -.-> PERF
 `;
 
-    // ---------------------------------------------------
-    // 2) PARSE MERMAID INTO nodes[] AND links[]
-    // ---------------------------------------------------
+    // =======================================================
+    // 2. PARSE NODES & LINKS FROM THE MERMAID TEXT
+    // =======================================================
     const nodeMap = new Map();
-    const links = [];
+    const linksRaw = [];
     let currentGroup = "Other";
 
     mermaidSource.split("\n").forEach(rawLine => {
-      let line = rawLine.trim();
+      const line = rawLine.trim();
       if (!line || line.startsWith("graph")) return;
 
-      // Comment lines define cluster (except "...connections")
+      // Cluster name from comments (except lines ending with 'connections')
       if (line.startsWith("%%")) {
-        const text = line.replace(/^%%\s*/, "").trim();
-        if (!/connections/i.test(text)) {
-          currentGroup = text || "Other";
-        }
+        const txt = line.replace(/^%%\s*/, "").trim();
+        if (!/connections/i.test(txt)) currentGroup = txt || "Other";
         return;
       }
 
-      // Node definitions: ID["Label"]
-      let nodeMatch = line.match(/^([A-Za-z0-9_]+)\["([^"]+)"\]/);
+      // Node definition: ID["Label"]
+      const nodeMatch = line.match(/^([A-Za-z0-9_]+)\["([^"]+)"\]/);
       if (nodeMatch) {
         const id = nodeMatch[1];
         const label = nodeMatch[2];
@@ -531,27 +563,23 @@ graph LR
         return;
       }
 
-      // Directed edges: ID --> ID, ID -.-> ID, etc.
-      let edgeMatchDir = line.match(/^([A-Za-z0-9_]+)\s*[-.=]+>\s*([A-Za-z0-9_]+)/);
+      // Directed edges: ID --> ID , ID -.-> ID , ID ==>
+      const edgeMatchDir = line.match(/^([A-Za-z0-9_]+)\s*[-.=]+>\s*([A-Za-z0-9_]+)/);
       if (edgeMatchDir) {
-        const source = edgeMatchDir[1];
-        const target = edgeMatchDir[2];
-        links.push({ source, target, weight: 1 });
+        linksRaw.push({ source: edgeMatchDir[1], target: edgeMatchDir[2], weight: 1 });
         return;
       }
 
-      // Undirected edges: ID --- ID, ID === ID (no arrowhead in Mermaid)
-      let edgeMatchUndir = line.match(/^([A-Za-z0-9_]+)\s*[-=]{3}\s*([A-Za-z0-9_]+)/);
+      // Undirected edges: ID --- ID or ID === ID
+      const edgeMatchUndir = line.match(/^([A-Za-z0-9_]+)\s*[-=]{3}\s*([A-Za-z0-9_]+)/);
       if (edgeMatchUndir) {
-        const source = edgeMatchUndir[1];
-        const target = edgeMatchUndir[2];
-        links.push({ source, target, weight: 1 });
+        linksRaw.push({ source: edgeMatchUndir[1], target: edgeMatchUndir[2], weight: 1 });
         return;
       }
     });
 
-    // Ensure every edge node exists
-    links.forEach(l => {
+    // Ensure all edge endpoints exist as nodes
+    linksRaw.forEach(l => {
       if (!nodeMap.has(l.source)) {
         nodeMap.set(l.source, { id: l.source, label: l.source, group: "Other" });
       }
@@ -562,210 +590,227 @@ graph LR
 
     const allNodes = Array.from(nodeMap.values());
 
-    // Degree for each node
+    // Degree (how many links per node)
     const degree = {};
-    allNodes.forEach(n => (degree[n.id] = 0));
-    links.forEach(l => {
+    allNodes.forEach(n => degree[n.id] = 0);
+    linksRaw.forEach(l => {
       degree[l.source] = (degree[l.source] || 0) + 1;
       degree[l.target] = (degree[l.target] || 0) + 1;
     });
 
-    // Drop isolated nodes (no edges)
+    // Remove completely isolated nodes (degree 0)
     const nodes = allNodes.filter(n => (degree[n.id] || 0) > 0);
+    const links = linksRaw;
 
-    // ---------------------------------------------------
-    // 3) D3 NETWORK
-    // ---------------------------------------------------
+    // =======================================================
+    // 3. D3 FORCE LAYOUT – LIGHT THEME
+    // =======================================================
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    const svg = d3
-      .select("#network")
+    const svg = d3.select("#network")
       .append("svg")
       .attr("width", width)
       .attr("height", height);
 
-    const container = svg.append("g");
+    const container = svg.append("g").attr("class", "container");
+    const tooltip = d3.select("#tooltip");
 
-    // Arrowhead marker
+    // Arrowheads
     const defs = svg.append("defs");
-    defs
-      .append("marker")
+    defs.append("marker")
       .attr("id", "arrow")
       .attr("viewBox", "0 -5 10 10")
-      .attr("refX", 14)
+      .attr("refX", 18)
       .attr("refY", 0)
       .attr("markerWidth", 6)
       .attr("markerHeight", 6)
       .attr("orient", "auto")
       .append("path")
       .attr("d", "M0,-5L10,0L0,5")
-      .attr("fill", "#999");
+      .attr("fill", "#9ca3af");
 
-    // Zoom & pan
-    const zoom = d3.zoom().scaleExtent([0.25, 3]).on("zoom", (event) => {
-      container.attr("transform", event.transform);
-    });
-    svg.call(zoom);
+    // Unique cluster names
+    const groups = Array.from(new Set(nodes.map(d => d.group || "Other")));
 
-    const tooltip = d3.select("#tooltip");
+    // Palette: blues + helpers
+    const palette = [
+      "#003366", "#005B96", "#0EA5E9", "#38BDF8",
+      "#22C55E", "#EAB308", "#F97316", "#F97373", "#A855F7"
+    ];
+    const color = d3.scaleOrdinal()
+      .domain(groups)
+      .range(palette.slice(0, groups.length));
 
-    const groups = [...new Set(nodes.map((d) => d.group))];
-
-    // Manual color palette per cluster
-    const colorMap = {
-      "Individual Psychology Cluster": "#4e79a7",
-      "Motivation & Well-being": "#f28e2b",
-      "Stress & Coping": "#e15759",
-      "Self-Leadership": "#76b7b2",
-      "Learning & Cognition": "#59a14f",
-      "Teams & Groups": "#edc948",
-      "Communication & Networks": "#ff9da7",
-      "Conflict & Justice": "#af7aa1",
-      "Leadership": "#9c755f",
-      "Dark Side": "#d62728",
-      "Power & Influence": "#bcbd22",
-      "Organizational Structure": "#17becf",
-      "Organizational Culture & Change": "#8c564b",
-      "Diversity & Context": "#1f77b4",
-      "Outcomes": "#7f7f7f",
-      "Other": "#cccccc"
-    };
-
-    const color = d => colorMap[d.group] || "#cccccc";
-
+    // Degree-based size
     const degValues = nodes.map(n => degree[n.id] || 1);
-    const sizeScale = d3
-      .scaleLinear()
+    const sizeScale = d3.scaleLinear()
       .domain([d3.min(degValues), d3.max(degValues)])
       .range([6, 24]);
 
-    // Cluster centers arranged in a circle
-    const groupCenters = {};
-    const radius = 260;
+    // Cluster centers placed in a ring
+    const radius = Math.min(width, height) * 0.32;
+    const centers = {};
     groups.forEach((g, i) => {
       const angle = (2 * Math.PI * i) / groups.length;
-      groupCenters[g] = {
+      centers[g] = {
         x: width / 2 + radius * Math.cos(angle),
         y: height / 2 + radius * Math.sin(angle)
       };
     });
 
-    const simulation = d3
-      .forceSimulation(nodes)
-      .force(
-        "link",
-        d3
-          .forceLink(links)
-          .id((d) => d.id)
-          .distance(75)
-      )
-      .force("charge", d3.forceManyBody().strength(-140))
-      .force(
-        "x",
-        d3.forceX((d) => groupCenters[d.group]?.x || width / 2).strength(0.09)
-      )
-      .force(
-        "y",
-        d3.forceY((d) => groupCenters[d.group]?.y || height / 2).strength(0.09)
-      )
-      .force(
-        "collision",
-        d3.forceCollide().radius((d) => sizeScale(degree[d.id] || 1) + 6)
-      );
-
-    // links
-    const link = container
-      .append("g")
-      .attr("stroke", "#999")
-      .attr("stroke-opacity", 0.35)
+    // Links
+    const link = container.append("g")
+      .attr("stroke-linecap", "round")
       .selectAll("line")
       .data(links)
-      .join("line")
+      .enter()
+      .append("line")
       .attr("class", "link")
-      .attr("stroke-width", 1.4)
+      .attr("stroke-width", 1.1)
       .attr("marker-end", "url(#arrow)");
 
-    // nodes
-    const node = container
-      .append("g")
+    // Nodes
+    const node = container.append("g")
       .selectAll("g")
       .data(nodes)
-      .join("g")
+      .enter()
+      .append("g")
       .attr("class", "node")
       .call(
-        d3
-          .drag()
+        d3.drag()
           .on("start", dragstarted)
           .on("drag", dragged)
           .on("end", dragended)
-      )
-      .on("mouseover", (event, d) => {
-        tooltip
-          .style("opacity", 1)
-          .html(
-            `<strong>${d.label}</strong><br/>Cluster: ${d.group}<br/>Degree: ${
-              degree[d.id] || 0
-            }`
-          );
-      })
-      .on("mousemove", (event) => {
-        tooltip
-          .style("left", event.pageX + 10 + "px")
-          .style("top", event.pageY + 10 + "px");
-      })
-      .on("mouseout", () => tooltip.style("opacity", 0));
+      );
 
-    node
-      .append("circle")
-      .attr("r", (d) => sizeScale(degree[d.id] || 1))
-      .attr("fill", (d) => color(d));
+    const circles = node.append("circle")
+      .attr("r", d => sizeScale(degree[d.id] || 1))
+      .attr("fill", d => color(d.group || "Other"));
 
-    node
-      .append("text")
-      .attr("x", 0)
+    const labels = node.append("text")
+      .attr("x", d => sizeScale(degree[d.id] || 1) + 4)
       .attr("y", 3)
-      .attr("text-anchor", "middle")
-      .text((d) => d.label);
+      .text(d => d.label || d.id);
+
+    // Force simulation
+    const simulation = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id(d => d.id).distance(70).strength(0.5))
+      .force("charge", d3.forceManyBody().strength(-130))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("x", d3.forceX(d => (centers[d.group] || { x: width / 2 }).x).strength(0.18))
+      .force("y", d3.forceY(d => (centers[d.group] || { y: height / 2 }).y).strength(0.18))
+      .force("collision", d3.forceCollide().radius(d => sizeScale(degree[d.id] || 1) + 8));
 
     simulation.on("tick", () => {
       link
-        .attr("x1", (d) => d.source.x)
-        .attr("y1", (d) => d.source.y)
-        .attr("x2", (d) => d.target.x)
-        .attr("y2", (d) => d.target.y);
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
 
-      node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+      node.attr("transform", d => `translate(${d.x},${d.y})`);
     });
 
+    // Zoom & pan
+    const zoom = d3.zoom()
+      .scaleExtent([0.3, 2.7])
+      .on("zoom", (event) => {
+        container.attr("transform", event.transform);
+      });
+    svg.call(zoom);
+
+    // Hover: highlight neighbors + tooltip (English only)
+    node
+      .on("mouseover", (event, d) => {
+        const connected = new Set();
+        links.forEach(l => {
+          const s = typeof l.source === "object" ? l.source.id : l.source;
+          const t = typeof l.target === "object" ? l.target.id : l.target;
+          if (s === d.id) connected.add(t);
+          if (t === d.id) connected.add(s);
+        });
+        connected.add(d.id);
+
+        circles.attr("opacity", n => connected.has(n.id) ? 1 : 0.15);
+        labels.attr("opacity", n => connected.has(n.id) ? 1 : 0.15);
+        link.attr("opacity", l => {
+          const s = typeof l.source === "object" ? l.source.id : l.source;
+          const t = typeof l.target === "object" ? l.target.id : l.target;
+          return (connected.has(s) && connected.has(t)) ? 0.85 : 0.08;
+        });
+
+        const english = d.label || d.id;
+        const group = d.group || "No cluster";
+        const deg = degree[d.id] || 0;
+
+        tooltip
+          .style("opacity", 1)
+          .html(
+            `<strong>${english}</strong><br>` +
+            `Cluster: ${group}<br>` +
+            `Connections: ${deg}`
+          )
+          .style("left", (event.pageX + 12) + "px")
+          .style("top", (event.pageY + 12) + "px");
+      })
+      .on("mousemove", (event) => {
+        tooltip
+          .style("left", (event.pageX + 12) + "px")
+          .style("top", (event.pageY + 12) + "px");
+      })
+      .on("mouseout", () => {
+        circles.attr("opacity", 1);
+        labels.attr("opacity", 1);
+        link.attr("opacity", 0.5);
+        tooltip.style("opacity", 0);
+      });
+
+    // Legend for clusters (top-left)
+    const legend = svg.append("g")
+      .attr("class", "legend")
+      .attr("transform", "translate(16,16)");
+
+    groups.forEach((g, i) => {
+      const row = legend.append("g")
+        .attr("transform", `translate(0, ${i * 18})`);
+
+      row.append("rect")
+        .attr("width", 10)
+        .attr("height", 10)
+        .attr("fill", color(g));
+
+      row.append("text")
+        .attr("x", 16)
+        .attr("y", 9)
+        .text(g);
+    });
+
+    // Drag behaviour
     function dragstarted(event, d) {
       if (!event.active) simulation.alphaTarget(0.3).restart();
       d.fx = d.x;
       d.fy = d.y;
     }
+
     function dragged(event, d) {
       d.fx = event.x;
       d.fy = event.y;
     }
+
     function dragended(event, d) {
       if (!event.active) simulation.alphaTarget(0);
       d.fx = null;
       d.fy = null;
     }
 
+    // Resize handling
     window.addEventListener("resize", () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
       svg.attr("width", w).attr("height", h);
-      simulation.force(
-        "x",
-        d3.forceX((d) => groupCenters[d.group]?.x || w / 2).strength(0.09)
-      );
-      simulation.force(
-        "y",
-        d3.forceY((d) => groupCenters[d.group]?.y || h / 2).strength(0.09)
-      );
-      simulation.alpha(0.6).restart();
+      simulation.force("center", d3.forceCenter(w / 2, h / 2));
+      simulation.alpha(0.7).restart();
     });
   </script>
 </body>
