@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ORG3403 Full Concept Network</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    #network {
+      width: 100vw;
+      height: 100vh;
+    }
+    .link {
+      stroke-opacity: 0.35;
+    }
+    .node circle {
+      stroke: #fff;
+      stroke-width: 1px;
+      cursor: pointer;
+    }
+    .node text {
+      font-size: 9px;
+      fill: #fff;
+      pointer-events: none;
+    }
+    .tooltip {
+      position: absolute;
+      padding: 6px 8px;
+      background: rgba(0, 0, 0, 0.9);
+      color: #fff;
+      font-size: 11px;
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="network"></div>
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    // ---------------------------------------------------
+    // 1) BIG MERMAID GRAPH (ALL CONCEPTS)
+    // ---------------------------------------------------
+    const mermaidSource = `
+graph LR
+    %% Individual Psychology Cluster
+    INT["Intelligence"]
+    GFAC["g-factor"]
+    COGAB["Cognitive abilities"]
+    PERS["Personality"]
+    BIG5["Big Five"]
+    NEUR["Neuroticism"]
+    EXTR["Extraversion"]
+    OPEN["Openness"]
+    AGREE["Agreeableness"]
+    CONSC["Conscientiousness"]
+    HEX["HEXACO"]
+    HONES["Honesty-Humility"]
+    EMOT["Emotionality"]
+    PERC["Perception"]
+    ATTR["Attribution"]
+    INTA["Internal attribution"]
+    EXTA["External attribution"]
+    STEREO["Stereotypes"]
+    PREJ["Prejudice"]
+    ATTIT["Attitudes"]
+    
+    %% Motivation & Well-being
+    MOT["Motivation"]
+    INTMOT["Intrinsic motivation"]
+    EXTMOT["Extrinsic motivation"]
+    NEEDT["Need theories"]
+    GOALT["Goal-setting theory"]
+    EXPT["Expectancy theory"]
+    SELFD["Self-determination"]
+    SAT["Job satisfaction"]
+    ENG["Engagement"]
+    VIGOR["Vigor"]
+    DEDIC["Dedication"]
+    ABSORP["Absorption"]
+    JOBCHAR["Job characteristics model"]
+    AUTON["Autonomy"]
+    SKILL["Skill variety"]
+    TASKID["Task identity"]
+    TASKSIG["Task significance"]
+    FEEDB["Feedback"]
+    
+    %% Stress & Coping
+    STR["Stress"]
+    STRES["Stressors"]
+    STRAIN["Strain"]
+    BURN["Burnout"]
+    EXHAUST["Exhaustion"]
+    CYNICISM["Cynicism"]
+    INEFF["Inefficacy"]
+    RES["Resilience"]
+    COP["Coping"]
+    PROBCOP["Problem-focused coping"]
+    EMOCOP["Emotion-focused coping"]
+    DEMANDS["Job demands"]
+    RESOURCES["Job resources"]
+    
+    %% Self-Leadership
+    SELF["Self-leadership"]
+    SELFOBS["Self-observation"]
+    SELFGOAL["Self-goal setting"]
+    SELFREWA["Self-reward"]
+    SELFPUN["Self-punishment"]
+    SELFTALK["Self-talk"]
+    MENTAL["Mental imagery"]
+    
+    %% Learning & Cognition
+    LEARN["Learning"]
+    SINGLE["Single-loop learning"]
+    DOUBLE["Double-loop learning"]
+    ERFAHRUNG["Experiential learning"]
+    METACOG["Metacognition"]
+    DEC["Decision making"]
+    DECBIAS["Decision biases"]
+    ANCHOR["Anchoring bias"]
+    CONFIRM["Confirmation bias"]
+    SUNK["Sunk cost fallacy"]
+    CREA["Creativity"]
+    INNOV["Innovation"]
+    PROB["Problem solving"]
+    
+    %% Teams & Groups
+    TEAM["Teams"]
+    FORM["Team formation"]
+    STORM["Storming phase"]
+    NORM["Norming phase"]
+    PERFORM["Performing phase"]
+    ROLES["Team roles"]
+    COHES["Cohesion"]
+    SOCID["Social identity"]
+    INGROUP["In-group"]
+    OUTGROUP["Out-group"]
+    GROUPTH["Groupthink"]
+    SOCLOAF["Social loafing"]
+    VIRT["Virtual teams"]
+    
+    %% Communication & Networks
+    COMM["Communication"]
+    FORMAL["Formal communication"]
+    INFORMAL["Informal communication"]
+    NET["Networks"]
+    CENTR["Centrality"]
+    BROK["Brokerage"]
+    INFO["Information flow"]
+    KNOWSH["Knowledge sharing"]
+    
+    %% Conflict & Justice
+    CONF["Conflict"]
+    TASKCONF["Task conflict"]
+    RELCONF["Relationship conflict"]
+    PROCCONF["Process conflict"]
+    JUST["Justice"]
+    DISTJUST["Distributive justice"]
+    PROCJUST["Procedural justice"]
+    INTJUST["Interactional justice"]
+    TRUST["Trust"]
+    
+    %% Leadership
+    LEAD["Leadership"]
+    TRANS["Transformational leadership"]
+    CHARIS["Charisma"]
+    INSPIR["Inspirational motivation"]
+    INTSTIM["Intellectual stimulation"]
+    INDCONS["Individual consideration"]
+    TRANSAC["Transactional leadership"]
+    CONTREW["Contingent reward"]
+    ACTEXC["Active management by exception"]
+    PASSEXC["Passive management by exception"]
+    LAISS["Laissez-faire leadership"]
+    AUTH["Authentic leadership"]
+    SERV["Servant leadership"]
+    LMXNODE["Leader-member exchange"]
+    
+    %% Dark Side
+    DESTR["Destructive leadership"]
+    NARC["Narcissism"]
+    MACH["Machiavellianism"]
+    PSYCH["Psychopathy"]
+    ABUSUP["Abusive supervision"]
+    BULLY["Bullying"]
+    HARAS["Harassment"]
+    
+    %% Power & Influence
+    POWER["Power"]
+    LEGIT["Legitimate power"]
+    REWARD["Reward power"]
+    COER["Coercive power"]
+    EXPERT["Expert power"]
+    REFER["Referent power"]
+    INFL["Influence tactics"]
+    RATION["Rational persuasion"]
+    INSPAPP["Inspirational appeals"]
+    CONSULT["Consultation"]
+    INGRAT["Ingratiation"]
+    EXCH["Exchange"]
+    COAL["Coalition building"]
+    PRESS["Pressure"]
+    
+    %% Organizational Structure
+    STRUCT["Organizational structure"]
+    BUREAU["Bureaucracy"]
+    MATRIX["Matrix structure"]
+    NETORG["Network organization"]
+    CENTRAL2["Centralization"]
+    FORMAL2["Formalization"]
+    SPECIAL["Specialization"]
+    HIER["Hierarchy"]
+    SPAN["Span of control"]
+    
+    %% Organizational Culture & Change
+    CULT["Organizational culture"]
+    VALUES["Values"]
+    NORMS["Norms"]
+    BELIEFS["Beliefs"]
+    ARTIFACTS["Artifacts"]
+    SUBCULTURES["Subcultures"]
+    CHANGE["Change management"]
+    RESIST["Resistance to change"]
+    READINESS["Change readiness"]
+    TRANSF["Transformation"]
+    COMPMAN["Competence management"]
+    
+    %% Diversity & Context
+    GEND["Gender"]
+    GLASS["Glass ceiling"]
+    DIV["Diversity"]
+    INCL["Inclusion"]
+    MULTI["Multicultural teams"]
+    CROSS["Cross-cultural management"]
+    HOFST["Hofstede dimensions"]
+    POWDIST["Power distance"]
+    INDCOLL["Individualism–collectivism"]
+    UNCAVO["Uncertainty avoidance"]
+    
+    %% Outcomes
+    PERF["Performance"]
+    TASKPERF["Task performance"]
+    CONTEXT["Contextual performance"]
+    OCBIT["OCB - Individual"]
+    OCBORG["OCB - Organization"]
+    TURNOVER["Turnover intention"]
+    ABSENT["Absenteeism"]
+    COMMIT["Commitment"]
+    AFFCOM["Affective commitment"]
+    CONTCOM["Continuance commitment"]
+    NORMCOM["Normative commitment"]
+    
+    %% Individual connections
+    INT === GFAC
+    INT === COGAB
+    COGAB -.-> DEC
+    COGAB -.-> PROB
+    PERS === BIG5
+    BIG5 === NEUR
+    BIG5 === EXTR
+    BIG5 === OPEN
+    BIG5 === AGREE
+    BIG5 === CONSC
+    PERS === HEX
+    HEX === HONES
+    HEX === EMOT
+    PERC === ATTR
+    ATTR === INTA
+    ATTR === EXTA
+    PERC -.-> STEREO
+    STEREO -.-> PREJ
+    ATTIT -.-> PREJ
+    
+    %% Motivation connections
+    MOT === INTMOT
+    MOT === EXTMOT
+    MOT === NEEDT
+    MOT === GOALT
+    MOT === EXPT
+    MOT === SELFD
+    INTMOT -.-> ENG
+    EXTMOT -.-> SAT
+    SAT -.-> COMMIT
+    ENG === VIGOR
+    ENG === DEDIC
+    ENG === ABSORP
+    JOBCHAR === AUTON
+    JOBCHAR === SKILL
+    JOBCHAR === TASKID
+    JOBCHAR === TASKSIG
+    JOBCHAR === FEEDB
+    JOBCHAR -.-> SAT
+    AUTON -.-> INTMOT
+    ENG -.-> PERF
+    SAT -.-> PERF
+    COMMIT === AFFCOM
+    COMMIT === CONTCOM
+    COMMIT === NORMCOM
+    COMMIT -.-> TURNOVER
+    
+    %% Stress connections
+    STR === STRES
+    STR === STRAIN
+    STRAIN -.-> BURN
+    BURN === EXHAUST
+    BURN === CYNICISM
+    BURN === INEFF
+    STR -.-> COP
+    COP === PROBCOP
+    COP === EMOCOP
+    RES -.-> COP
+    DEMANDS -.-> STR
+    DEMANDS -.-> BURN
+    RESOURCES -.-> ENG
+    RESOURCES -.-> RES
+    
+    %% Self-leadership connections
+    SELF === SELFOBS
+    SELF === SELFGOAL
+    SELF === SELFREWA
+    SELF === SELFPUN
+    SELF === SELFTALK
+    SELF === MENTAL
+    SELF -.-> INTMOT
+    SELF -.-> PERF
+    
+    %% Learning & cognition connections
+    LEARN === SINGLE
+    LEARN === DOUBLE
+    LEARN === ERFAHRUNG
+    LEARN === METACOG
+    METACOG -.-> DEC
+    DEC === DECBIAS
+    DECBIAS === ANCHOR
+    DECBIAS === CONFIRM
+    DECBIAS === SUNK
+    DEC -.-> PROB
+    CREA === INNOV
+    CREA -.-> PROB
+    INNOV -.-> CHANGE
+    LEARN -.-> PERF
+    LEARN -.-> CHANGE
+    
+    %% Teams & groups connections
+    TEAM === FORM
+    FORM === STORM
+    STORM === NORM
+    NORM === PERFORM
+    TEAM === ROLES
+    TEAM === COHES
+    COHES -.-> PERF
+    SOCID === INGROUP
+    SOCID === OUTGROUP
+    SOCID -.-> GROUPTH
+    GROUPTH -.-> DEC
+    SOCLOAF -.-> PERF
+    VIRT -.-> TEAM
+    VIRT -.-> COMM
+    
+    %% Communication & networks connections
+    COMM === FORMAL
+    COMM === INFORMAL
+    COMM -.-> INFO
+    COMM -.-> KNOWSH
+    NET === CENTR
+    NET === BROK
+    NET -.-> INFO
+    CENTR -.-> POWER
+    BROK -.-> POWER
+    KNOWSH -.-> PERF
+    KNOWSH -.-> INNOV
+    
+    %% Conflict & justice connections
+    CONF === TASKCONF
+    CONF === RELCONF
+    CONF === PROCCONF
+    CONF -.-> STR
+    CONF -.-> BURN
+    JUST === DISTJUST
+    JUST === PROCJUST
+    JUST === INTJUST
+    JUST -.-> TRUST
+    JUST -.-> SAT
+    TRUST -.-> LMXNODE
+    TRUST -.-> TEAM
+    TRUST -.-> PERF
+    
+    %% Leadership connections
+    LEAD === TRANS
+    LEAD === TRANSAC
+    LEAD === AUTH
+    LEAD === SERV
+    LEAD === LMXNODE
+    TRANS === CHARIS
+    TRANS === INSPIR
+    TRANS === INTSTIM
+    TRANS === INDCONS
+    TRANS -.-> ENG
+    TRANS -.-> PERF
+    TRANSAC === CONTREW
+    TRANSAC === ACTEXC
+    TRANSAC === PASSEXC
+    LAISS -.-> BURN
+    LMXNODE -.-> SAT
+    LMXNODE -.-> PERF
+    AUTH -.-> TRUST
+    SERV -.-> ENG
+    
+    %% Dark side connections
+    DESTR === NARC
+    DESTR === MACH
+    DESTR === PSYCH
+    DESTR === ABUSUP
+    ABUSUP === BULLY
+    ABUSUP === HARAS
+    DESTR -.-> BURN
+    DESTR -.-> SAT
+    BULLY -.-> BURN
+    BULLY -.-> TURNOVER
+    HARAS -.-> STR
+    
+    %% Power & influence connections
+    POWER === LEGIT
+    POWER === REWARD
+    POWER === COER
+    POWER === EXPERT
+    POWER === REFER
+    POWER -.-> LEAD
+    INFL === RATION
+    INFL === INSPAPP
+    INFL === CONSULT
+    INFL === INGRAT
+    INFL === EXCH
+    INFL === COAL
+    INFL === PRESS
+    INFL -.-> PERF
+    INFL -.-> COMMIT
+    
+    %% Organizational structure connections
+    STRUCT === BUREAU
+    STRUCT === MATRIX
+    STRUCT === NETORG
+    STRUCT === CENTRAL2
+    STRUCT === FORMAL2
+    STRUCT === SPECIAL
+    STRUCT === HIER
+    STRUCT === SPAN
+    STRUCT -.-> CULT
+    STRUCT -.-> PERF
+    CENTRAL2 -.-> POWER
+    FORMAL2 -.-> STR
+    
+    %% Culture & change connections
+    CULT === VALUES
+    CULT === NORMS
+    CULT === BELIEFS
+    CULT === ARTIFACTS
+    CULT === SUBCULTURES
+    CULT -.-> ATTIT
+    CULT -.-> JUST
+    CULT -.-> TRUST
+    CHANGE === RESIST
+    CHANGE === READINESS
+    CHANGE === TRANSF
+    CHANGE -.-> STR
+    CHANGE -.-> LEARN
+    TRANSF -.-> COMPMAN
+    COMPMAN -.-> LEARN
+    CHANGE -.-> PERF
+    
+    %% Diversity & context connections
+    DIV === INCL
+    DIV === GEND
+    DIV === MULTI
+    DIV === CROSS
+    GEND -.-> GLASS
+    MULTI -.-> TEAM
+    CROSS === HOFST
+    HOFST === POWDIST
+    HOFST === INDCOLL
+    HOFST === UNCAVO
+    DIV -.-> JUST
+    DIV -.-> CULT
+    
+    %% Outcomes connections
+    PERF === TASKPERF
+    PERF === CONTEXT
+    PERF === OCBIT
+    PERF === OCBORG
+    TURNOVER -.-> PERF
+    ABSENT -.-> PERF
+`;
+
+    // ---------------------------------------------------
+    // 2) PARSE MERMAID INTO nodes[] AND links[]
+    // ---------------------------------------------------
+    const nodeMap = new Map();
+    const links = [];
+    let currentGroup = "Other";
+
+    mermaidSource.split("\n").forEach(rawLine => {
+      let line = rawLine.trim();
+      if (!line || line.startsWith("graph")) return;
+
+      // Comment lines define cluster (except "...connections")
+      if (line.startsWith("%%")) {
+        const text = line.replace(/^%%\s*/, "").trim();
+        if (!/connections/i.test(text)) {
+          currentGroup = text || "Other";
+        }
+        return;
+      }
+
+      // Node definitions: ID["Label"]
+      let nodeMatch = line.match(/^([A-Za-z0-9_]+)\["([^"]+)"\]/);
+      if (nodeMatch) {
+        const id = nodeMatch[1];
+        const label = nodeMatch[2];
+        if (!nodeMap.has(id)) {
+          nodeMap.set(id, { id, label, group: currentGroup });
+        }
+        return;
+      }
+
+      // Directed edges: ID --> ID, ID -.-> ID, etc.
+      let edgeMatchDir = line.match(/^([A-Za-z0-9_]+)\s*[-.=]+>\s*([A-Za-z0-9_]+)/);
+      if (edgeMatchDir) {
+        const source = edgeMatchDir[1];
+        const target = edgeMatchDir[2];
+        links.push({ source, target, weight: 1 });
+        return;
+      }
+
+      // Undirected edges: ID --- ID, ID === ID (no arrowhead in Mermaid)
+      let edgeMatchUndir = line.match(/^([A-Za-z0-9_]+)\s*[-=]{3}\s*([A-Za-z0-9_]+)/);
+      if (edgeMatchUndir) {
+        const source = edgeMatchUndir[1];
+        const target = edgeMatchUndir[2];
+        links.push({ source, target, weight: 1 });
+        return;
+      }
+    });
+
+    // Ensure every edge node exists
+    links.forEach(l => {
+      if (!nodeMap.has(l.source)) {
+        nodeMap.set(l.source, { id: l.source, label: l.source, group: "Other" });
+      }
+      if (!nodeMap.has(l.target)) {
+        nodeMap.set(l.target, { id: l.target, label: l.target, group: "Other" });
+      }
+    });
+
+    const allNodes = Array.from(nodeMap.values());
+
+    // Degree for each node
+    const degree = {};
+    allNodes.forEach(n => (degree[n.id] = 0));
+    links.forEach(l => {
+      degree[l.source] = (degree[l.source] || 0) + 1;
+      degree[l.target] = (degree[l.target] || 0) + 1;
+    });
+
+    // Drop isolated nodes (no edges)
+    const nodes = allNodes.filter(n => (degree[n.id] || 0) > 0);
+
+    // ---------------------------------------------------
+    // 3) D3 NETWORK
+    // ---------------------------------------------------
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    const svg = d3
+      .select("#network")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    const container = svg.append("g");
+
+    // Arrowhead marker
+    const defs = svg.append("defs");
+    defs
+      .append("marker")
+      .attr("id", "arrow")
+      .attr("viewBox", "0 -5 10 10")
+      .attr("refX", 14)
+      .attr("refY", 0)
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 6)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("d", "M0,-5L10,0L0,5")
+      .attr("fill", "#999");
+
+    // Zoom & pan
+    const zoom = d3.zoom().scaleExtent([0.25, 3]).on("zoom", (event) => {
+      container.attr("transform", event.transform);
+    });
+    svg.call(zoom);
+
+    const tooltip = d3.select("#tooltip");
+
+    const groups = [...new Set(nodes.map((d) => d.group))];
+
+    // Manual color palette per cluster
+    const colorMap = {
+      "Individual Psychology Cluster": "#4e79a7",
+      "Motivation & Well-being": "#f28e2b",
+      "Stress & Coping": "#e15759",
+      "Self-Leadership": "#76b7b2",
+      "Learning & Cognition": "#59a14f",
+      "Teams & Groups": "#edc948",
+      "Communication & Networks": "#ff9da7",
+      "Conflict & Justice": "#af7aa1",
+      "Leadership": "#9c755f",
+      "Dark Side": "#d62728",
+      "Power & Influence": "#bcbd22",
+      "Organizational Structure": "#17becf",
+      "Organizational Culture & Change": "#8c564b",
+      "Diversity & Context": "#1f77b4",
+      "Outcomes": "#7f7f7f",
+      "Other": "#cccccc"
+    };
+
+    const color = d => colorMap[d.group] || "#cccccc";
+
+    const degValues = nodes.map(n => degree[n.id] || 1);
+    const sizeScale = d3
+      .scaleLinear()
+      .domain([d3.min(degValues), d3.max(degValues)])
+      .range([6, 24]);
+
+    // Cluster centers arranged in a circle
+    const groupCenters = {};
+    const radius = 260;
+    groups.forEach((g, i) => {
+      const angle = (2 * Math.PI * i) / groups.length;
+      groupCenters[g] = {
+        x: width / 2 + radius * Math.cos(angle),
+        y: height / 2 + radius * Math.sin(angle)
+      };
+    });
+
+    const simulation = d3
+      .forceSimulation(nodes)
+      .force(
+        "link",
+        d3
+          .forceLink(links)
+          .id((d) => d.id)
+          .distance(75)
+      )
+      .force("charge", d3.forceManyBody().strength(-140))
+      .force(
+        "x",
+        d3.forceX((d) => groupCenters[d.group]?.x || width / 2).strength(0.09)
+      )
+      .force(
+        "y",
+        d3.forceY((d) => groupCenters[d.group]?.y || height / 2).strength(0.09)
+      )
+      .force(
+        "collision",
+        d3.forceCollide().radius((d) => sizeScale(degree[d.id] || 1) + 6)
+      );
+
+    // links
+    const link = container
+      .append("g")
+      .attr("stroke", "#999")
+      .attr("stroke-opacity", 0.35)
+      .selectAll("line")
+      .data(links)
+      .join("line")
+      .attr("class", "link")
+      .attr("stroke-width", 1.4)
+      .attr("marker-end", "url(#arrow)");
+
+    // nodes
+    const node = container
+      .append("g")
+      .selectAll("g")
+      .data(nodes)
+      .join("g")
+      .attr("class", "node")
+      .call(
+        d3
+          .drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended)
+      )
+      .on("mouseover", (event, d) => {
+        tooltip
+          .style("opacity", 1)
+          .html(
+            `<strong>${d.label}</strong><br/>Cluster: ${d.group}<br/>Degree: ${
+              degree[d.id] || 0
+            }`
+          );
+      })
+      .on("mousemove", (event) => {
+        tooltip
+          .style("left", event.pageX + 10 + "px")
+          .style("top", event.pageY + 10 + "px");
+      })
+      .on("mouseout", () => tooltip.style("opacity", 0));
+
+    node
+      .append("circle")
+      .attr("r", (d) => sizeScale(degree[d.id] || 1))
+      .attr("fill", (d) => color(d));
+
+    node
+      .append("text")
+      .attr("x", 0)
+      .attr("y", 3)
+      .attr("text-anchor", "middle")
+      .text((d) => d.label);
+
+    simulation.on("tick", () => {
+      link
+        .attr("x1", (d) => d.source.x)
+        .attr("y1", (d) => d.source.y)
+        .attr("x2", (d) => d.target.x)
+        .attr("y2", (d) => d.target.y);
+
+      node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+    });
+
+    function dragstarted(event, d) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+    function dragended(event, d) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+
+    window.addEventListener("resize", () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      svg.attr("width", w).attr("height", h);
+      simulation.force(
+        "x",
+        d3.forceX((d) => groupCenters[d.group]?.x || w / 2).strength(0.09)
+      );
+      simulation.force(
+        "y",
+        d3.forceY((d) => groupCenters[d.group]?.y || h / 2).strength(0.09)
+      );
+      simulation.alpha(0.6).restart();
+    });
+  </script>
+</body>
+</html>
